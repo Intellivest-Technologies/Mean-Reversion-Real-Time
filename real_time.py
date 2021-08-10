@@ -68,7 +68,6 @@ def get_prices(c, end):
     df = pd.read_json(y)
     #drop last row
     df = df[:-1]
-    df.to_csv('test.csv')
 
     return df
 
