@@ -17,7 +17,6 @@ from auth_params import ACCT_NUMBER, API_KEY
 #GLOBAL VARIABLES
 STOCK = 'VOO'
 TIME_PERIOD = 20
-portfolio = {}
 
 def auth_func():
 
@@ -36,13 +35,13 @@ def auth_func():
 
 def get_MovingAverage(prices, time_period):
 
-    prices = prices[0:time_period]
+    prices = prices[-time_period:]
     ma = mean(prices)
     return ma
     
 def get_BBands(prices, time_period):
 
-    prices = prices[0:time_period]
+    prices = prices[-time_period:]
     print(prices)
     ma = get_MovingAverage(prices, time_period)
     std = stdev(prices)
@@ -67,6 +66,9 @@ def get_prices(c, end):
     y = y["candles"]
     y = json.dumps(y)
     df = pd.read_json(y)
+    #drop last row
+    df = df[:-1]
+    df.to_csv('test.csv')
 
     return df
 
@@ -104,11 +106,27 @@ def place_order(c, order_type, shares):
         r = c.place_order(ACCT_NUMBER, order_spec)
         assert r.status_code == 200, r.raise_for_status()
 
+def get_position(c):
+
+    r = c.get_account(ACCT_NUMBER, fields=c.Account.Fields.POSITIONS)
+    assert r.status_code == 200, r.raise_for_status()
+
+    y = r.json()
+
+    if "positions" in y["securitiesAccount"]:
+        return True
+    else:
+        return False
+
 def get_action():
 
     c = auth_func()
     now = datetime.now()
     print(now)
+
+    #get current position
+    position = get_position(c)
+    print('HAS POSITION: ' + str(position))
 
     df = get_prices(c, now)
     bup, bdown = get_BBands(df.close, TIME_PERIOD)
@@ -128,19 +146,17 @@ def get_action():
     if roundtrips < 2:
 
         if price < bdown:
-            if portfolio[STOCK] == 0:
-                portfolio[STOCK] = 1
+            if position == False:
                 place_order(c, 'buy', 1)
                 print("Bought")
 
         if price > bup:
-            if portfolio[STOCK] == 1:
-                portfolio[STOCK] = 0
+            if position == True:
                 place_order(c, 'sell', 1)
                 print("Sold")
 
 def main():
-
+    
     #local
     schedule.every().day.at("07:00").do(get_action)
     schedule.every().day.at("07:30").do(get_action)
@@ -157,6 +173,7 @@ def main():
     schedule.every().day.at("13:00").do(get_action)
 
     #real
+
     '''
     schedule.every().day.at("14:00").do(get_action)
     schedule.every().day.at("14:30").do(get_action)
@@ -178,7 +195,6 @@ def main():
         time.sleep(1)
 
 
-if __name__ == "__main__":
-    main()
+main()
 
 
