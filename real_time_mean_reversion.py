@@ -12,11 +12,25 @@ from statistics import stdev
 import json
 import schedule
 import time
-from auth_params import ACCT_NUMBER, API_KEY
+import pymongo
+import certifi
+from auth_params import ACCT_NUMBER, API_KEY, DB_PASS
 
 #GLOBAL VARIABLES
 STOCK = 'VOO'
 TIME_PERIOD = 20
+
+def connect_db():
+    ca = certifi.where()
+    try:
+        client = pymongo.MongoClient("mongodb+srv://intellivest:" + DB_PASS + "@nilecluster1.8ujon.mongodb.net/AlgoTrading?retryWrites=true&w=majority", tlsCAFile=ca)
+        db = client["AlgoTrading"]
+        col = db.MeanReversion
+
+    except:
+        raise RuntimeError('DB Connection Error')
+
+    return col
 
 def auth_func():
 
@@ -119,6 +133,7 @@ def get_position(c):
 
 def get_action():
 
+    col = connect_db()
     c = auth_func()
     now = datetime.now()
     print(now)
@@ -142,21 +157,37 @@ def get_action():
     print("Low Band " + str(bdown))
 
     #check if roundtrips is less than 2
+    action = "nothing"
     if roundtrips < 2:
 
         if price < bdown:
             if position == False:
-                place_order(c, 'buy', 1)
+                #place_order(c, 'buy', 1)
+                action = "buy"
                 print("Bought")
 
         if price > bup:
             if position == True:
-                place_order(c, 'sell', 1)
+                #place_order(c, 'sell', 1)
+                action = "sell"
                 print("Sold")
 
+    db_event = {
+        "datetime": now,
+        "price": price,
+        "BUP": bup,
+        "BDOWN": bdown,
+        "action": action
+    }
+
+
+    col.insert_one(db_event)
+
+
 def main():
-    
+
     #local
+
     schedule.every().day.at("07:00").do(get_action)
     schedule.every().day.at("07:30").do(get_action)
     schedule.every().day.at("08:00").do(get_action)
@@ -171,9 +202,8 @@ def main():
     schedule.every().day.at("12:30").do(get_action)
     schedule.every().day.at("13:00").do(get_action)
 
-    #real
-
     '''
+    real
     schedule.every().day.at("14:00").do(get_action)
     schedule.every().day.at("14:30").do(get_action)
     schedule.every().day.at("15:00").do(get_action)
