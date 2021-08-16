@@ -111,13 +111,11 @@ def place_order(c, order_type, shares):
 
     if order_type == 'buy':
         order_spec = equity_buy_market(STOCK, shares).set_session(Session.NORMAL).set_duration(Duration.DAY).build()
-        r = c.place_order(ACCT_NUMBER, order_spec)
-        assert r.status_code == 200, r.raise_for_status()
+        c.place_order(ACCT_NUMBER, order_spec)
 
     if order_type == 'sell':
         order_spec = equity_sell_market(STOCK, shares).set_session(Session.NORMAL).set_duration(Duration.DAY).build()
-        r = c.place_order(ACCT_NUMBER, order_spec)
-        assert r.status_code == 200, r.raise_for_status()
+        c.place_order(ACCT_NUMBER, order_spec)
 
 def get_position(c):
 
@@ -138,39 +136,47 @@ def get_action():
     now = datetime.now()
     print(now)
 
-    #get current position
-    position = get_position(c)
-    print('HAS POSITION: ' + str(position))
+    try:
+        #get current position
+        position = get_position(c)
+        print('HAS POSITION: ' + str(position))
 
-    df = get_prices(c, now)
-    bup, bdown = get_BBands(df.close, TIME_PERIOD)
+        df = get_prices(c, now)
+        bup, bdown = get_BBands(df.close, TIME_PERIOD)
 
-    #get current price
-    price = get_cur_price(c)
+        #get current price
+        price = get_cur_price(c)
 
-    #get account balance
-    balance, roundtrips = get_balance(c)
+        #get account balance
+        balance, roundtrips = get_balance(c)
 
-    print("Current balance " + str(balance))
-    print("Current price " + str(price))
-    print("High Band " + str(bup))
-    print("Low Band " + str(bdown))
+        print("Current balance " + str(balance))
+        print("Current price " + str(price))
+        print("High Band " + str(bup))
+        print("Low Band " + str(bdown))
 
-    #check if roundtrips is less than 2
-    action = "nothing"
-    if roundtrips < 2:
+        #check if roundtrips is less than 2
+        action = "nothing"
+        if roundtrips < 2:
 
-        if price < bdown:
-            if position == False:
-                #place_order(c, 'buy', 1)
-                action = "buy"
-                print("Bought")
+            if price < bdown:
+                if position == False:
+                    place_order(c, 'buy', 1)
+                    action = "buy"
+                    print("Bought")
 
-        if price > bup:
-            if position == True:
-                #place_order(c, 'sell', 1)
-                action = "sell"
-                print("Sold")
+            if price > bup:
+                if position == True:
+                    place_order(c, 'sell', 1)
+                    action = "sell"
+                    print("Sold")
+
+    except:
+        print('Auth Error')
+        price = "ERR"
+        bup = "ERR"
+        bdown = "ERR"
+        action = "ERR"
 
     db_event = {
         "datetime": now,
@@ -179,7 +185,6 @@ def get_action():
         "BDOWN": bdown,
         "action": action
     }
-
 
     col.insert_one(db_event)
 
