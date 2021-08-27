@@ -28,7 +28,7 @@ def connect_db():
         col = db.MeanReversion
 
     except:
-        raise RuntimeError('DB Connection Error')
+        print('DB Connection Error')
 
     return col
 
@@ -186,7 +186,10 @@ def get_action():
         "action": action
     }
 
-    col.insert_one(db_event)
+    try:
+        col.insert_one(db_event)
+    except:
+        print('Didnt store. DB Connection error')
 
 
 def main():
